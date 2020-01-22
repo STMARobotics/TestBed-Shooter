@@ -33,9 +33,10 @@ public class Robot extends TimedRobot {
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
-  private final WPI_TalonSRX motorOne = new WPI_TalonSRX(0);
-  private final WPI_TalonSRX motorTwo = new WPI_TalonSRX(1);
-  private final WPI_TalonSRX motorThree = new WPI_TalonSRX(2);
+  private final WPI_TalonSRX motorZero = new WPI_TalonSRX(0);
+  private final WPI_TalonSRX motorOne = new WPI_TalonSRX(1);
+  private final WPI_TalonSRX motorTwo = new WPI_TalonSRX(2);
+  private final WPI_TalonSRX motorThree = new WPI_TalonSRX(3);
   private final XboxController controller = new XboxController(0);
 
   /**
@@ -60,14 +61,14 @@ public class Robot extends TimedRobot {
     talonConfig.closedloopRamp = .2;
     talonConfig.openloopRamp = 2;
     
-    motorOne.configAllSettings(talonConfig);
-    motorOne.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 10);
-    motorOne.setSensorPhase(true);
+    motorZero.configAllSettings(talonConfig);
+    motorZero.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 10);
+    motorZero.setSensorPhase(true);
 
-    motorThree.configOpenloopRamp(0);
+    motorTwo.configOpenloopRamp(0);
 
-    motorTwo.setInverted(InvertType.OpposeMaster);
-    motorTwo.follow(motorOne);
+    motorOne.setInverted(InvertType.OpposeMaster);
+    motorOne.follow(motorZero);
   }
 
   /**
@@ -107,9 +108,9 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
     int rpm = 940;
     int speed = (rpm * 66 * 4096) / (18 * 60 * 10);
-    motorOne.set(ControlMode.Velocity, speed);
-    SmartDashboard.putNumber("Ticks Per Decisec", motorOne.getSelectedSensorVelocity());
-    SmartDashboard.putNumber("RPM", (motorOne.getSelectedSensorVelocity() * 60 * 18 * 10) / (4096 * 66));
+    motorZero.set(ControlMode.Velocity, speed);
+    SmartDashboard.putNumber("Ticks Per Decisec", motorZero.getSelectedSensorVelocity());
+    SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60 * 18 * 10) / (4096 * 66));
   }
 
   /**
@@ -120,22 +121,22 @@ public class Robot extends TimedRobot {
     int rpm = 3975;
     int speed = (rpm * 66 * 4096) / (18 * 60 * 10 * 4);
     if (controller.getAButton()) {
-      motorOne.set(ControlMode.Velocity, speed);
+      motorZero.set(ControlMode.Velocity, speed);
     } else  {
-      motorOne.set(0);
+      motorZero.set(0);
     }
     if (controller.getTriggerAxis(Hand.kRight) > controller.getTriggerAxis(Hand.kLeft)) {
-      motorThree.set(controller.getTriggerAxis(Hand.kRight ) * 1);
+      motorTwo.set(controller.getTriggerAxis(Hand.kRight ) * 1);
       controller.setRumble(RumbleType.kLeftRumble, controller.getTriggerAxis(Hand.kRight));
     } else if (controller.getTriggerAxis(Hand.kLeft) > controller.getTriggerAxis(Hand.kRight)) {
-      motorThree.set(-controller.getTriggerAxis(Hand.kLeft) * 1);
+      motorTwo.set(-controller.getTriggerAxis(Hand.kLeft) * 1);
       controller.setRumble(RumbleType.kLeftRumble, controller.getTriggerAxis(Hand.kLeft));
     } else {
-      motorThree.set(0);
+      motorTwo.set(0);
       controller.setRumble(RumbleType.kLeftRumble, 0);
     }
-    SmartDashboard.putNumber("Ticks Per Decisec", motorOne.getSelectedSensorVelocity());
-    SmartDashboard.putNumber("RPM", (motorOne.getSelectedSensorVelocity() * 60 * 18 * 10 * 4) / (4096 * 66));
+    SmartDashboard.putNumber("Ticks Per Decisec", motorZero.getSelectedSensorVelocity());
+    SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60 * 18 * 10 * 4) / (4096 * 66));
   }
 
   /**
