@@ -107,10 +107,10 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     int rpm = 940;
-    int speed = (rpm * 66 * 4096) / (18 * 60 * 10);
+    int speed = (rpm * 4096) / (60 * 10);
     motorZero.set(ControlMode.Velocity, speed);
     SmartDashboard.putNumber("Ticks Per Decisec", motorZero.getSelectedSensorVelocity());
-    SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60 * 18 * 10) / (4096 * 66));
+    SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60 * 10) / (4096));
   }
 
   /**
