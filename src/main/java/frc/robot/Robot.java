@@ -8,15 +8,21 @@
 package frc.robot;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.DemandType;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.InvertType;
 import com.ctre.phoenix.motorcontrol.can.TalonSRXConfiguration;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
+import edu.wpi.first.wpilibj.Compressor;
+import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.GenericHID.Hand;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -39,36 +45,51 @@ public class Robot extends TimedRobot {
   private final WPI_TalonSRX motorThree = new WPI_TalonSRX(3);
   private final XboxController controller = new XboxController(0);
 
+  private final DoubleSolenoid solenoid = new DoubleSolenoid(0, 1);
+  private final Compressor compressor = new Compressor(0);
+  private final Value pneumaticOut = Value.kForward;
+  private final Value pneumaticIn = Value.kReverse;
+
+  private final DigitalInput irSensor = new DigitalInput(0);
+
+  private final SimpleMotorFeedforward motorFeedForward = new SimpleMotorFeedforward(.644, .0901, .0926);
+
+  private int targetSpeed = 60000;
+  private int targetSpeedRPM = (targetSpeed * 600) / 8192;
+
   /**
    * This function is run when the robot is first started up and should be
    * used for any initialization code.
    */
   @Override
   public void robotInit() {
+    System.out.println("Target RPM: " + targetSpeedRPM);
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
-    
+
     TalonSRXConfiguration talonConfig = new TalonSRXConfiguration();
-    talonConfig.primaryPID.selectedFeedbackSensor = FeedbackDevice.CTRE_MagEncoder_Relative;
+    talonConfig.primaryPID.selectedFeedbackSensor = FeedbackDevice.QuadEncoder;
     talonConfig.neutralDeadband = 0.001;
-    talonConfig.slot0.kF = 1023.0 / 23500.0;
-    talonConfig.slot0.kP = 1.0;
+    talonConfig.slot0.kF = 0.0;
+    talonConfig.slot0.kP = .2;
     talonConfig.slot0.kI = 0.0;
-    talonConfig.slot0.kD = 0.0;
+    talonConfig.slot0.kD = 14.1;
     talonConfig.slot0.integralZone = 400;
     talonConfig.slot0.closedLoopPeakOutput = 1.0;
-    talonConfig.closedloopRamp = .2;
-    talonConfig.openloopRamp = 2;
+    talonConfig.closedloopRamp = 0.1;
+    talonConfig.openloopRamp = 0;
     
     motorZero.configAllSettings(talonConfig);
-    motorZero.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 10);
+    motorZero.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, 0, 10);
     motorZero.setSensorPhase(true);
 
     motorTwo.configOpenloopRamp(0);
 
     motorOne.setInverted(InvertType.OpposeMaster);
     motorOne.follow(motorZero);
+
+    solenoid.set(pneumaticIn);
   }
 
   /**
@@ -81,6 +102,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
+    SmartDashboard.putBoolean("IR Sensor", !irSensor.get());
   }
 
   /**
@@ -107,10 +129,14 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     int rpm = 940;
-    int speed = (rpm * 4096) / (60 * 10);
+    int speed = (rpm * 8192) / (60 * 10);
     motorZero.set(ControlMode.Velocity, speed);
     SmartDashboard.putNumber("Ticks Per Decisec", motorZero.getSelectedSensorVelocity());
     SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60 * 10) / (4096));
+  }
+
+  @Override
+  public void teleopInit() {
   }
 
   /**
@@ -118,25 +144,29 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
-    int rpm = 3975;
-    int speed = (rpm * 66 * 4096) / (18 * 60 * 10 * 4);
     if (controller.getAButton()) {
-      motorZero.set(ControlMode.Velocity, speed);
-    } else  {
+      motorZero.set(ControlMode.Velocity, targetSpeed, DemandType.ArbitraryFeedForward, motorFeedForward.calculate(targetSpeedRPM / 60) / 12);
+    } else {
       motorZero.set(0);
     }
+    // motorZero.set(-controller.getY(Hand.kLeft));
     if (controller.getTriggerAxis(Hand.kRight) > controller.getTriggerAxis(Hand.kLeft)) {
-      motorTwo.set(controller.getTriggerAxis(Hand.kRight ) * 1);
+      motorTwo.set(controller.getTriggerAxis(Hand.kRight ) * .75);
       controller.setRumble(RumbleType.kLeftRumble, controller.getTriggerAxis(Hand.kRight));
     } else if (controller.getTriggerAxis(Hand.kLeft) > controller.getTriggerAxis(Hand.kRight)) {
-      motorTwo.set(-controller.getTriggerAxis(Hand.kLeft) * 1);
+      motorTwo.set(-controller.getTriggerAxis(Hand.kLeft) * .75);
       controller.setRumble(RumbleType.kLeftRumble, controller.getTriggerAxis(Hand.kLeft));
     } else {
       motorTwo.set(0);
       controller.setRumble(RumbleType.kLeftRumble, 0);
     }
     SmartDashboard.putNumber("Ticks Per Decisec", motorZero.getSelectedSensorVelocity());
-    SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60 * 18 * 10 * 4) / (4096 * 66));
+    SmartDashboard.putNumber("RPM", (motorZero.getSelectedSensorVelocity() * 60l  * 10l) / (8192l));
+    if (controller.getBumper(Hand.kLeft)) {
+      solenoid.set(pneumaticIn);
+    } else if (controller.getBumper(Hand.kRight)) {
+      solenoid.set(pneumaticOut);
+    }
   }
 
   /**
